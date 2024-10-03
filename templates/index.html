@@ -1,40 +1,261 @@
 <!doctype html>
 <html lang="en">
-  <head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
-    <title>File Upload with MediaWiki Metadata</title>
-  </head>
-  <body>
-    <div class="container">
-      <h1>Upload File to Fetch Metadata</h1>
-      <form action="{{ url_for('upload_file') }}" method="post" enctype="multipart/form-data">
-        <div>
-          <label for="file">Choose a CSV or TSV file:</label>
-          <input type="file" name="file" required>
-        </div>
-        
-        <h3>Select Metadata to Include</h3>
-        <div>
-          <input type="checkbox" id="description" name="options" value="description">
-          <label for="description">Description</label><br>
 
-          <input type="checkbox" id="creation_date" name="options" value="creation_date">
-          <label for="creation_date">Creation Date</label><br>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+  <title>File Upload with MediaWiki Metadata</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background-color: #f4f4f9;
+      margin: 0;
+      padding: 20px;
+    }
 
-          <input type="checkbox" id="author" name="options" value="author">
-          <label for="author">Author</label><br>
+    .container {
+      max-width: 600px;
+      margin: 0 auto;
+      background-color: #fff;
+      padding: 20px;
+      border-radius: 10px;
+      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+      text-align: center;
+    }
 
-          <input type="checkbox" id="license" name="options" value="license">
-          <label for="license">License Information</label><br>
+    h1 {
+      margin-bottom: 20px;
+      color: #333;
+    }
 
+    .upload-area {
+      border: 2px dashed #ccc;
+      border-radius: 10px;
+      padding: 30px;
+      cursor: pointer;
+      background-color: #fafafa;
+      transition: background-color 0.3s ease;
+      position: relative;
+    }
 
+    .upload-area.dragover {
+      background-color: #e0f7fa;
+    }
 
+    .upload-area p {
+      margin: 0;
+      font-size: 1.2rem;
+      color: #666;
+    }
 
-        </div>
+    .uploaded-file {
+      margin-top: 10px;
+      font-size: 1.1rem;
+      color: #007bff;
+      font-weight: bold;
+      display: none;
+    }
 
-        <button type="submit">Upload and Fetch Metadata</button>
-      </form>
-    </div>
-  </body>
+    input[type="file"] {
+      display: none;
+    }
+
+    .checkbox-group {
+      margin-top: 20px;
+      text-align: left;
+    }
+
+    .checkbox-group input {
+      margin-right: 10px;
+      accent-color: #007bff;
+    }
+
+    .checkbox-group label {
+      font-size: 1rem;
+    }
+
+    .checkbox-group input:checked+label {
+      font-weight: bold;
+      color: #007bff;
+    }
+
+    .submit-btn {
+      display: inline-block;
+      margin-top: 20px;
+      padding: 10px 20px;
+      background-color: #007bff;
+      color: #fff;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+      font-size: 1rem;
+      transition: background-color 0.3s ease;
+    }
+
+    .submit-btn:hover {
+      background-color: #0056b3;
+    }
+
+    .hidden-input {
+      display: none;
+    }
+
+    .check {
+      cursor: pointer;
+      position: relative;
+      margin: auto;
+      width: 18px;
+      height: 18px;
+      -webkit-tap-highlight-color: transparent;
+      transform: translate3d(0, 0, 0);
+    }
+
+    .check:before {
+      content: "";
+      position: absolute;
+      top: -15px;
+      left: -15px;
+      width: 48px;
+      height: 48px;
+      border-radius: 50%;
+      background: rgba(34, 50, 84, 0.03);
+      opacity: 0;
+      transition: opacity 0.2s ease;
+    }
+
+    .check svg {
+      position: relative;
+      z-index: 1;
+      fill: none;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+      stroke: #c8ccd4;
+      stroke-width: 1.5;
+      transform: translate3d(0, 0, 0);
+      transition: all 0.2s ease;
+    }
+
+    .check svg path {
+      stroke-dasharray: 60;
+      stroke-dashoffset: 0;
+    }
+
+    .check svg polyline {
+      stroke-dasharray: 22;
+      stroke-dashoffset: 66;
+    }
+
+    .check:hover:before {
+      opacity: 1;
+    }
+
+    .check:hover svg {
+      stroke: #4285f4;
+    }
+
+    #cbx:checked+.check svg {
+      stroke: #4285f4;
+    }
+
+    #cbx:checked+.check svg path {
+      stroke-dashoffset: 60;
+      transition: all 0.3s linear;
+    }
+
+    #cbx:checked+.check svg polyline {
+      stroke-dashoffset: 42;
+      transition: all 0.2s linear;
+      transition-delay: 0.15s;
+    }
+
+    .hidden-cbx {
+      display: none;
+    }
+
+    .checkbox-container {
+      display: flex;
+      align-items: center;
+      margin-bottom: 10px;
+    }
+
+    .cbx-label {
+      display: flex;
+      align-items: center;
+      cursor: pointer;
+    }
+
+    .cbx-label .check {
+      margin-right: 10px;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="container">
+    <h1>Upload File to Fetch Metadata</h1>
+
+    <form id="uploadForm" action="{{ url_for('upload_file') }}" method="post" enctype="multipart/form-data">
+      <div class="upload-area" id="uploadArea">
+        <p id="uploadText">Drag & Drop your CSV/TSV file here or click to browse</p>
+        <p class="uploaded-file" id="uploadedFileName"></p>
+        <input type="file" id="fileInput" name="file" required>
+      </div>
+
+      <h3>Select Metadata to Include</h3>
+      <div class="checkbox-group">
+        <input type="checkbox" id="description" name="options" value="description" checked>
+        <label for="description">Description</label><br>
+
+        <input type="checkbox" id="creation_date" name="options" value="creation_date" checked>
+        <label for="creation_date">Creation Date</label><br>
+
+        <input type="checkbox" id="author" name="options" value="author" checked>
+        <label for="author">Author</label><br>
+
+        <input type="checkbox" id="license" name="options" value="license" checked>
+        <label for="license">License Information</label><br>
+      </div>
+
+      <button type="submit" class="submit-btn">Upload and Fetch Metadata</button>
+    </form>
+  </div>
+
+  <script>
+    const uploadArea = document.getElementById('uploadArea');
+    const fileInput = document.getElementById('fileInput');
+    const uploadText = document.getElementById('uploadText');
+    const uploadedFileName = document.getElementById('uploadedFileName');
+
+    // Drag and drop file upload behavior
+    uploadArea.addEventListener('click', () => fileInput.click());
+    uploadArea.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      uploadArea.classList.add('dragover');
+    });
+    uploadArea.addEventListener('dragleave', () => uploadArea.classList.remove('dragover'));
+    uploadArea.addEventListener('drop', (e) => {
+      e.preventDefault();
+      uploadArea.classList.remove('dragover');
+
+      const files = e.dataTransfer.files;
+      if (files.length > 0) {
+        fileInput.files = files;
+        showUploadedFileName(files[0].name);
+      }
+    });
+
+    fileInput.addEventListener('change', (e) => {
+      if (fileInput.files.length > 0) {
+        showUploadedFileName(fileInput.files[0].name);
+      }
+    });
+
+    function showUploadedFileName(fileName) {
+      uploadText.style.display = 'none';
+      uploadedFileName.textContent = `File uploaded: ${fileName}`;
+      uploadedFileName.style.display = 'block';
+    }
+  </script>
+</body>
+
 </html>
